@@ -79,7 +79,7 @@ fn main() -> Result<(), Error> {
     let mut backlight = gpio.get(BACKLIGHT_PIN)?.into_output_high();
 
     let inputs: HashMap<GpioInput, InputPin> = GpioInput::iter()
-        .map(|input| (input.clone(), input.init(gpio)))
+        .map(|input| (input.clone(), input.init(gpio.clone())))
         .collect();
 
     // Keep the panel enabled after this short-lived program exits. By default,
