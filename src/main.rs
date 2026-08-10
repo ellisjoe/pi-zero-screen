@@ -11,7 +11,6 @@ use rppal::{
     spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 use st7735_lcd::{Orientation, ST7735};
-use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::{thread, time::Duration};
 use strum::IntoEnumIterator;
@@ -30,7 +29,7 @@ const BACKGROUND: Rgb565 = Rgb565::new(0, 4, 10);
 type Error = Box<dyn std::error::Error>;
 
 // Joystick and button pins on the Waveshare 1.44inch LCD HAT (BCM numbering).
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, EnumIter)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, EnumIter)]
 #[repr(u8)]
 enum GpioInput {
     JoystickUp = 6,
@@ -78,7 +77,7 @@ fn main() -> Result<(), Error> {
     let mut reset = gpio.get(RESET_PIN)?.into_output_high();
     let mut backlight = gpio.get(BACKLIGHT_PIN)?.into_output_high();
 
-    let inputs: BTreeMap<GpioInput, InputPin> = GpioInput::iter()
+    let inputs: Vec<(GpioInput, InputPin)> = GpioInput::iter()
         .map(|input| (input.clone(), input.init(gpio.clone())))
         .collect();
 
