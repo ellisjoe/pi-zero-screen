@@ -118,6 +118,8 @@ fn main() -> Result<(), Error> {
     println!("Watching joystick and buttons. Press Ctrl-C to stop.");
 
     let mut previous_state = vec![];
+    draw_input_state(&mut display, &vec![], body)?;
+
     loop {
         let state: Vec<GpioInput> = inputs
             .iter()
