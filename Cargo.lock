@@ -119,6 +119,7 @@ name = "pi-zero-screen"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
+ "embedded-hal 1.0.0",
  "rppal",
  "st7735-lcd",
 ]

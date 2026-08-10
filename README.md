@@ -1,8 +1,8 @@
 # Pi Zero 2 W + Waveshare 1.44-inch LCD HAT
 
-This example displays two lines of text on Waveshare's 128×128 ST7735S LCD HAT.
-The GPIO control pins remain configured after the program exits, so the image
-and backlight stay visible until another program changes them or the Pi powers off.
+This example displays a live input tester on Waveshare's 128×128 ST7735S LCD
+HAT. Move or press the joystick, or press any of the three buttons, and the
+control name appears on the screen. Multiple simultaneous inputs are supported.
 
 ## Pin mapping
 
@@ -17,6 +17,19 @@ not physical header positions:
 | DC | 25 | 22 |
 | RESET | 27 | 13 |
 | Backlight | 24 | 18 |
+
+The HAT's controls use these active-low inputs (with internal pull-ups enabled):
+
+| Control | BCM GPIO | Physical pin |
+| --- | ---: | ---: |
+| Joystick up | 6 | 31 |
+| Joystick down | 19 | 35 |
+| Joystick left | 5 | 29 |
+| Joystick right | 26 | 37 |
+| Joystick press | 13 | 33 |
+| Button 1 | 21 | 40 |
+| Button 2 | 20 | 38 |
+| Button 3 | 16 | 36 |
 
 ## Raspberry Pi setup
 
@@ -39,6 +52,8 @@ Install Rust if needed, then run the example from this directory:
 ```sh
 cargo run --release
 ```
+
+The tester runs continuously; press `Ctrl-C` to stop it.
 
 GPIO and SPI access depend on the Raspberry Pi OS user/group configuration. If
 you get `Permission denied`, try `sudo -E cargo run --release` as a quick test.
