@@ -11,7 +11,11 @@ use rppal::{
     spi::{Bus, Mode, SimpleHalSpiDevice, SlaveSelect, Spi},
 };
 use st7735_lcd::{Orientation, ST7735};
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::{thread, time::Duration};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 const WIDTH: u32 = 128;
 const HEIGHT: u32 = 128;
@@ -21,19 +25,48 @@ const DC_PIN: u8 = 25;
 const RESET_PIN: u8 = 27;
 const BACKLIGHT_PIN: u8 = 24;
 
-// Joystick and button pins on the Waveshare 1.44inch LCD HAT (BCM numbering).
-const JOYSTICK_UP_PIN: u8 = 6;
-const JOYSTICK_DOWN_PIN: u8 = 19;
-const JOYSTICK_LEFT_PIN: u8 = 5;
-const JOYSTICK_RIGHT_PIN: u8 = 26;
-const JOYSTICK_PRESS_PIN: u8 = 13;
-const BUTTON_1_PIN: u8 = 21;
-const BUTTON_2_PIN: u8 = 20;
-const BUTTON_3_PIN: u8 = 16;
-
 const BACKGROUND: Rgb565 = Rgb565::new(0, 4, 10);
 
 type Error = Box<dyn std::error::Error>;
+
+// Joystick and button pins on the Waveshare 1.44inch LCD HAT (BCM numbering).
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, EnumIter)]
+#[repr(u8)]
+enum GpioInput {
+    JoystickUp = 6,
+    JoystickDown = 19,
+    JoystickLeft = 5,
+    JoystickRight = 26,
+    JoystickPress = 13,
+    Button1 = 21,
+    Button2 = 20,
+    Button3 = 16,
+}
+
+impl GpioInput {
+    fn init(&self, gpio: Gpio) -> InputPin {
+        gpio.get(*self as u8).unwrap().into_input_pullup()
+    }
+
+    fn to_str(&self) -> &'static str {
+        match self {
+            GpioInput::JoystickUp => "Joystick Up",
+            GpioInput::JoystickDown => "Joystick Down",
+            GpioInput::JoystickLeft => "Joystick Left",
+            GpioInput::JoystickRight => "Joystick Right",
+            GpioInput::JoystickPress => "Joystick Press",
+            GpioInput::Button1 => "Button 1",
+            GpioInput::Button2 => "Button 2",
+            GpioInput::Button3 => "Button 3",
+        }
+    }
+}
+
+impl Display for GpioInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
+}
 
 fn main() -> Result<(), Error> {
     // SPI0 CE0 maps to the HAT's SCLK=BCM11, MOSI=BCM10, CS=BCM8.
@@ -45,33 +78,9 @@ fn main() -> Result<(), Error> {
     let mut reset = gpio.get(RESET_PIN)?.into_output_high();
     let mut backlight = gpio.get(BACKLIGHT_PIN)?.into_output_high();
 
-    // The controls connect their GPIO to ground when pressed, so enable the
-    // Pi's internal pull-up resistors and treat a low level as pressed.
-    let inputs = [
-        (
-            "Joystick UP",
-            gpio.get(JOYSTICK_UP_PIN)?.into_input_pullup(),
-        ),
-        (
-            "Joystick DOWN",
-            gpio.get(JOYSTICK_DOWN_PIN)?.into_input_pullup(),
-        ),
-        (
-            "Joystick LEFT",
-            gpio.get(JOYSTICK_LEFT_PIN)?.into_input_pullup(),
-        ),
-        (
-            "Joystick RIGHT",
-            gpio.get(JOYSTICK_RIGHT_PIN)?.into_input_pullup(),
-        ),
-        (
-            "Joystick PRESS",
-            gpio.get(JOYSTICK_PRESS_PIN)?.into_input_pullup(),
-        ),
-        ("Button 1", gpio.get(BUTTON_1_PIN)?.into_input_pullup()),
-        ("Button 2", gpio.get(BUTTON_2_PIN)?.into_input_pullup()),
-        ("Button 3", gpio.get(BUTTON_3_PIN)?.into_input_pullup()),
-    ];
+    let inputs: HashMap<GpioInput, InputPin> = GpioInput::iter()
+        .map(|input| (input.clone(), input.init(gpio)))
+        .collect();
 
     // Keep the panel enabled after this short-lived program exits. By default,
     // rppal resets GPIO pins to inputs when their handles are dropped, which
@@ -109,9 +118,14 @@ fn main() -> Result<(), Error> {
 
     println!("Watching joystick and buttons. Press Ctrl-C to stop.");
 
-    let mut previous_state = u8::MAX;
+    let mut previous_state = vec![];
     loop {
-        let state = input_state(&inputs);
+        let state: Vec<GpioInput> = inputs
+            .iter()
+            .filter(|(_, pin)| pin.is_low())
+            .map(|(input, _)| input)
+            .collect();
+
         if state != previous_state {
             draw_input_state(&mut display, &inputs, state, body)?;
             previous_state = state;
@@ -123,19 +137,10 @@ fn main() -> Result<(), Error> {
     }
 }
 
-fn input_state(inputs: &[(&'static str, InputPin)]) -> u8 {
-    inputs
-        .iter()
-        .enumerate()
-        .fold(0, |state, (index, (_, pin))| {
-            state | ((pin.is_low() as u8) << index)
-        })
-}
-
 fn draw_input_state<SPI, DC, RST>(
     display: &mut ST7735<SPI, DC, RST>,
-    inputs: &[(&'static str, InputPin)],
-    state: u8,
+    inputs: HashMap<GpioInput, InputPin>,
+    state: Vec<GpioInput>,
     style: MonoTextStyle<'_, Rgb565>,
 ) -> Result<(), Error>
 where
@@ -148,20 +153,18 @@ where
         .draw(display)
         .map_err(|_| "could not clear input message")?;
 
-    if state == 0 {
+    if state.is_empty() {
         Text::with_baseline("None", Point::new(52, 75), style, Baseline::Top)
             .draw(display)
             .map_err(|_| "could not draw input message")?;
     } else {
         // Multiple controls can be shown at once, one per line.
         let mut y = 66;
-        for (index, (name, _)) in inputs.iter().enumerate() {
-            if state & (1 << index) != 0 {
-                Text::with_baseline(name, Point::new(7, y), style, Baseline::Top)
-                    .draw(display)
-                    .map_err(|_| "could not draw input message")?;
-                y += 12;
-            }
+        for input in state {
+            Text::with_baseline(input.to_str(), Point::new(7, y), style, Baseline::Top)
+                .draw(display)
+                .map_err(|_| "could not draw input message")?;
+            y += 12;
         }
     }
 
