@@ -88,7 +88,7 @@ fn main() -> Result<(), Error> {
         .init(&mut delay)
         .map_err(|_| "ST7735 initialization failed")?;
     display
-        .set_orientation(&Orientation::Portrait)
+        .set_orientation(&Orientation::Landscape)
         .map_err(|_| "could not set display orientation")?;
 
     // The 1.44-inch panel starts one controller pixel to the right.
