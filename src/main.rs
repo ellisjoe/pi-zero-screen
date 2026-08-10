@@ -27,9 +27,16 @@ fn main() -> Result<(), Error> {
     let spi = SimpleHalSpiDevice::new(spi);
 
     let gpio = Gpio::new()?;
-    let dc = gpio.get(DC_PIN)?.into_output_low();
-    let reset = gpio.get(RESET_PIN)?.into_output_high();
+    let mut dc = gpio.get(DC_PIN)?.into_output_low();
+    let mut reset = gpio.get(RESET_PIN)?.into_output_high();
     let mut backlight = gpio.get(BACKLIGHT_PIN)?.into_output_high();
+
+    // Keep the panel enabled after this short-lived program exits. By default,
+    // rppal resets GPIO pins to inputs when their handles are dropped, which
+    // releases RESET and BACKLIGHT and makes the freshly drawn image disappear.
+    dc.set_reset_on_drop(false);
+    reset.set_reset_on_drop(false);
+    backlight.set_reset_on_drop(false);
     backlight.set_high();
 
     let mut delay = Delay::new();

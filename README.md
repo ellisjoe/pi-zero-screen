@@ -1,6 +1,8 @@
 # Pi Zero 2 W + Waveshare 1.44-inch LCD HAT
 
 This example displays two lines of text on Waveshare's 128×128 ST7735S LCD HAT.
+The GPIO control pins remain configured after the program exits, so the image
+and backlight stay visible until another program changes them or the Pi powers off.
 
 ## Pin mapping
 
