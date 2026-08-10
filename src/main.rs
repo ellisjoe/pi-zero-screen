@@ -123,11 +123,11 @@ fn main() -> Result<(), Error> {
         let state: Vec<GpioInput> = inputs
             .iter()
             .filter(|(_, pin)| pin.is_low())
-            .map(|(input, _)| input)
+            .map(|(input, _)| *input)
             .collect();
 
-        if state != previous_state {
-            draw_input_state(&mut display, &inputs, state, body)?;
+        if !state.eq(&previous_state) {
+            draw_input_state(&mut display, &inputs, &state, body)?;
             previous_state = state;
         }
 
@@ -139,8 +139,8 @@ fn main() -> Result<(), Error> {
 
 fn draw_input_state<SPI, DC, RST>(
     display: &mut ST7735<SPI, DC, RST>,
-    inputs: HashMap<GpioInput, InputPin>,
-    state: Vec<GpioInput>,
+    inputs: &HashMap<GpioInput, InputPin>,
+    state: &Vec<GpioInput>,
     style: MonoTextStyle<'_, Rgb565>,
 ) -> Result<(), Error>
 where
