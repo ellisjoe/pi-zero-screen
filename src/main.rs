@@ -127,7 +127,7 @@ fn main() -> Result<(), Error> {
             .collect();
 
         if !state.eq(&previous_state) {
-            draw_input_state(&mut display, &inputs, &state, body)?;
+            draw_input_state(&mut display, &state, body)?;
             previous_state = state;
         }
 
@@ -139,7 +139,6 @@ fn main() -> Result<(), Error> {
 
 fn draw_input_state<SPI, DC, RST>(
     display: &mut ST7735<SPI, DC, RST>,
-    inputs: &HashMap<GpioInput, InputPin>,
     state: &Vec<GpioInput>,
     style: MonoTextStyle<'_, Rgb565>,
 ) -> Result<(), Error>
